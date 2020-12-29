@@ -38,19 +38,36 @@ download.file(url, destfile = rki_tab_path, mode = "wb")
 sheets <- excel_sheets(rki_tab_path)
 sheets <- setdiff(sheets, "Erläuterungen")
 
-# read all data sheets at once
-rki_tabs <- map(sheets, ~read_xlsx(here::here(rki_tab_path), sheet = .x)) %>% 
-  set_names(sheets)
+# # read all data sheets at once
+# rki_tabs <- map(sheets, ~read_xlsx(here::here(rki_tab_path), sheet = .x)) %>% 
+#   set_names(sheets)
 
 # put everything together
-df <- bind_rows(rki_tabs, .id = "date") %>% 
-  select(date, bundesland = 2, count_cumul = 3) %>% 
-  mutate(date = dmy(date),
+# df <- bind_rows(rki_tabs, .id = "date") %>% 
+#   select(date, bundesland = 2, count_cumul = 3) %>% 
+#   mutate(date = dmy(date),
+#          bundesland = str_remove_all(bundesland, "\\*")) %>% 
+#   na.omit()
+
+# get update date from sheet "Erläuterungen"
+update_dates <- read_xlsx(here::here(rki_tab_path), sheet = 1) %>% 
+  rename(X1 = 1) %>% 
+  filter(str_detect(X1, "Datenstand:")) %>% 
+  transmute(date = str_extract(X1, "\\d{1,2}\\.\\d{1,2}\\.\\d{4}"),
+         date = dmy(date),
+         update_date_str = str_remove(X1, "Datenstand: ")) %>% 
+  slice(1)
+
+# latest <- max(df$date)
+latest <- update_dates$date - 1
+latest_fmt <- format(latest, format = "%d.%m.%Y")
+
+df <- read_xlsx(here::here(rki_tab_path), sheet = 2) %>% 
+  select(bundesland = 1, count_cumul = 2) %>% 
+  mutate(date = latest,
          bundesland = str_remove_all(bundesland, "\\*")) %>% 
   na.omit()
 
-latest <- max(df$date)
-latest_fmt <- format(latest, format = "%d.%m.%Y")
 
 
 ```
@@ -122,10 +139,10 @@ df %>%
   select(-date, Bundesland = bundesland, `Impfungen (kumulativ)` = count_cumul) %>% 
   datatable(style = "bootstrap4",
             rownames = FALSE,
-            caption = glue::glue("Daten: RKI, Stand {latest_fmt}."),
+            caption = glue::glue("Daten: RKI, Stand {update_dates$update_date_str}"),
             options = list("pagelength" = 16,
                            "paging" = FALSE, 
-                           # "columnDefs" = list(list(className = 'dt-left', targets = "_all")),
+                           "columnDefs" = list(list(className = 'dt-left', targets = "_all")),
                            "searching" = FALSE,
                            "bInfo" = FALSE # hide "Showing ... entries" 
                            )) %>% 
@@ -137,8 +154,8 @@ df %>%
         backgroundSize = "100% 50%",
         backgroundRepeat = "no-repeat",
         backgroundPosition = "center"
-      ) %>% 
-  formatRound("Impfungen (kumulativ)", digits = 0, mark = ".")
+      ) #%>% 
+  # formatRound("Impfungen (kumulativ)", digits = 0, mark = ".")
 
 ```
 
