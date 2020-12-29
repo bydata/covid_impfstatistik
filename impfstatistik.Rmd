@@ -1,0 +1,144 @@
+---
+title: "Impffortschritt Deutschland"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: paper
+  css: dataTables.bootstrap4.css
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(lubridate)
+library(readxl)
+library(plotly)
+library(extrafont)
+library(DT)
+
+loadfonts()
+main_color <- "lightblue"
+
+```
+
+Column {data-width=1600}
+-----------------------------------------------------------------------
+
+### DEUTSCHLAND GESAMT
+
+```{r}
+url <- "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Impfquotenmonitoring.xlsx;jsessionid=?__blob=publicationFile"
+rki_tab_path <- file.path("data", 
+                          glue::glue("Impfquotenmonitoring_{Sys.Date()}.xlsx")
+                          )
+download.file(url, destfile = rki_tab_path, mode = "wb")
+
+# get the sheets in the xl file
+sheets <- excel_sheets(rki_tab_path)
+sheets <- setdiff(sheets, "Erläuterungen")
+
+# read all data sheets at once
+rki_tabs <- map(sheets, ~read_xlsx(here::here(rki_tab_path), sheet = .x)) %>% 
+  set_names(sheets)
+
+# put everything together
+df <- bind_rows(rki_tabs, .id = "date") %>% 
+  select(date, bundesland = 2, count_cumul = 3) %>% 
+  mutate(date = dmy(date),
+         bundesland = str_remove_all(bundesland, "\\*")) %>% 
+  na.omit()
+
+latest <- max(df$date)
+latest_fmt <- format(latest, format = "%d.%m.%Y")
+
+
+```
+
+```{r}
+
+inhabitants_de <- 83166711
+
+df %>% 
+  filter(date == latest) %>% 
+  filter(bundesland == "Gesamt") %>% 
+  mutate(vac_share = count_cumul / inhabitants_de) %>% 
+ggplot() +
+  annotate("segment", x = 1, xend = 1, y = 0, yend = 1,
+           col = "grey70", size = 7, alpha = 0.75) +
+  geom_segment(aes(x = 1, xend = 1, y = 0, yend = vac_share), 
+               col = main_color, size = 3) +
+  geom_point(aes(x = 1, y = vac_share), shape = "|", size = 8) +
+  geom_text(aes(x = 1, y = vac_share, label = scales::percent(vac_share, accuracy = 0.01, decimal.mark = ",")),
+            hjust = 0.5, col = "grey30", nudge_x = 0.0075, family = "Source Sans Pro", size = 4) +
+  coord_flip(xlim = c(1, 1)) +
+  theme_void() 
+
+  
+
+```
+
+
+### VERLAUF 
+
+```{r}
+
+p <- df %>%
+  filter(date == latest) %>%
+  filter(bundesland == "Gesamt") %>%
+  select(-bundesland) %>% 
+  bind_rows(tibble(date = as_date("2020-12-26"), count_cumul = 51)) %>% 
+  mutate(vac_share = count_cumul / inhabitants_de) %>%
+  ggplot(aes(date, vac_share, group = 1)) +
+  geom_line(aes(
+    text = glue::glue(
+      "<b>{date}</b><br>
+                                  {count_cumul} Impfungen<br>
+                                  {scales::percent(vac_share, accuracy = 0.01, decimal.mark = ',')} der Bevölkerung geimpft"
+    )
+  ), col = main_color, size = 0.9 ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  coord_cartesian(ylim = c(0, 0.1)) +
+  labs(x = NULL,  y = NULL) +
+  theme_minimal(base_family = "Source Sans Pro", base_size = 14)
+
+# ggplotly(p, tooltip = c("text"))
+
+p
+
+```
+
+
+Column {data-width=1000}
+-----------------------------------------------------------------------
+
+
+### BUNDESLÄNDER
+
+```{r}
+
+df %>% 
+  filter(date == latest, bundesland != "Gesamt") %>% 
+  select(-date, Bundesland = bundesland, `Impfungen (kumulativ)` = count_cumul) %>% 
+  datatable(style = "bootstrap4",
+            rownames = FALSE,
+            caption = glue::glue("Daten: RKI, Stand {latest_fmt}."),
+            options = list("pagelength" = 16,
+                           "paging" = FALSE, 
+                           # "columnDefs" = list(list(className = 'dt-left', targets = "_all")),
+                           "searching" = FALSE,
+                           "bInfo" = FALSE # hide "Showing ... entries" 
+                           )) %>% 
+    formatStyle(
+        "Impfungen (kumulativ)",
+        background = styleColorBar(df$count_cumul,
+                                   main_color,
+                                   angle = -90),
+        backgroundSize = "100% 50%",
+        backgroundRepeat = "no-repeat",
+        backgroundPosition = "center"
+      ) %>% 
+  formatRound("Impfungen (kumulativ)", digits = 0, mark = ".")
+
+```
+
