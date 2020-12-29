@@ -201,7 +201,7 @@ state_centers <- tidy_germany %>%
   mutate(label_abs = glue::glue("{NAME_1}<br><b style='color:{darken(main_color, 0.2)}'>
                                 {count_cumul}</b>"),
          label_share = glue::glue("{NAME_1}<br><b style='color:{darken(main_color, 0.1)}'>
-                                  {scales::percent(vac_share, accuracy = 0.01)}</b>")) %>% 
+                                  {scales::percent(vac_share, accuracy = 0.01, decimal.mark = ',')}</b>")) %>% 
   # manually shift some center positions for better readability
   mutate(long_center = case_when(
     NAME_1 == "Bayern" ~ long_center + 1,
