@@ -4,7 +4,7 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
-    theme: paper
+    theme: yeti
   css: dataTables.bootstrap4.css
 ---
 
@@ -16,38 +16,29 @@ library(readxl)
 library(plotly)
 library(extrafont)
 library(DT)
+library(sf)
+library(rgdal)
+library(colorspace)
+library(ggtext)
+
+knitr::opts_chunk$set(dev.args = list(png = list(type = "cairo")),
+                      fig.retina=TRUE)
+
 
 loadfonts()
-main_color <- "lightblue"
+main_color <- "#008cba"
 
 ```
 
-Column {data-width=1600}
------------------------------------------------------------------------
-
-### DEUTSCHLAND GESAMT
 
 ```{r}
+# download latest report
 url <- "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Impfquotenmonitoring.xlsx;jsessionid=?__blob=publicationFile"
 rki_tab_path <- file.path("data", 
                           glue::glue("Impfquotenmonitoring_{Sys.Date()}.xlsx")
                           )
 download.file(url, destfile = rki_tab_path, mode = "wb")
 
-# get the sheets in the xl file
-sheets <- excel_sheets(rki_tab_path)
-sheets <- setdiff(sheets, "Erläuterungen")
-
-# # read all data sheets at once
-# rki_tabs <- map(sheets, ~read_xlsx(here::here(rki_tab_path), sheet = .x)) %>% 
-#   set_names(sheets)
-
-# put everything together
-# df <- bind_rows(rki_tabs, .id = "date") %>% 
-#   select(date, bundesland = 2, count_cumul = 3) %>% 
-#   mutate(date = dmy(date),
-#          bundesland = str_remove_all(bundesland, "\\*")) %>% 
-#   na.omit()
 
 # get update date from sheet "Erläuterungen"
 update_dates <- read_xlsx(here::here(rki_tab_path), sheet = 1) %>% 
@@ -68,11 +59,60 @@ df <- read_xlsx(here::here(rki_tab_path), sheet = 2) %>%
          bundesland = str_remove_all(bundesland, "\\*")) %>% 
   na.omit()
 
+inhabitants_states <- tribble(
+  ~bundesland, ~inhabitants, 
+"Baden-Württemberg", 11100394, 
+"Bayern", 13124737, 
+"Berlin", 3669491, 
+"Brandenburg", 2521893, 
+"Bremen", 681202, 
+"Hamburg", 1847253, 
+"Hessen", 6288080, 
+"Mecklenburg-Vorpommern", 1608138, 
+"Niedersachsen", 7993608, 
+"Nordrhein-Westfalen", 17947221, 
+"Rheinland-Pfalz", 4093903, 
+"Saarland", 986887, 
+"Sachsen", 4071971, 
+"Sachsen-Anhalt", 2194782, 
+"Schleswig-Holstein", 2903773, 
+"Thüringen", 2133378
+)
 
 
 ```
 
+
 ```{r}
+
+# load all reports from filesystem
+files <- list.files("data", pattern = "Impfquotenmonitoring_")
+
+df <- map(files, 
+    ~read_xlsx(here::here(file.path("data", .x)), 
+               sheet = 2)) %>% 
+  set_names(files) %>% 
+  bind_rows(.id = "file") %>% 
+  select(file, bundesland = 2, count_cumul = 3) %>% 
+  mutate(date = str_extract(file, "\\d{4}-\\d{1,2}-\\d{1,2}"),
+         date = as_date(date) - 1,
+         bundesland = str_remove_all(bundesland, "\\*")) %>% 
+  select(date, bundesland, count_cumul) %>% 
+  na.omit
+
+```
+
+
+
+
+Column {data-width=600}
+-----------------------------------------------------------------------
+
+### DEUTSCHLAND GESAMT {data-height=300, .no-padding}
+
+
+
+```{r fig.width=12, fig.height=3}
 
 inhabitants_de <- 83166711
 
@@ -82,12 +122,13 @@ df %>%
   mutate(vac_share = count_cumul / inhabitants_de) %>% 
 ggplot() +
   annotate("segment", x = 1, xend = 1, y = 0, yend = 1,
-           col = "grey70", size = 7, alpha = 0.75) +
+           col = "grey50", size = 12, alpha = 0.75) +
   geom_segment(aes(x = 1, xend = 1, y = 0, yend = vac_share), 
-               col = main_color, size = 3) +
-  geom_point(aes(x = 1, y = vac_share), shape = "|", size = 8) +
-  geom_text(aes(x = 1, y = vac_share, label = scales::percent(vac_share, accuracy = 0.01, decimal.mark = ",")),
-            hjust = 0.5, col = "grey30", nudge_x = 0.0075, family = "Source Sans Pro", size = 4) +
+               col = main_color, size = 8) +
+  geom_point(aes(x = 1, y = vac_share), shape = "|", size = 12) +
+  geom_text(aes(x = 1, y = vac_share, 
+                label = scales::percent(vac_share, accuracy = 0.01, decimal.mark = ",")),
+            hjust = 0, col = "grey30", nudge_x = 0.02, family = "Source Sans Pro", size = 12) +
   coord_flip(xlim = c(1, 1)) +
   theme_void() 
 
@@ -96,7 +137,7 @@ ggplot() +
 ```
 
 
-### VERLAUF 
+### VERLAUF  {data-height=700}
 
 ```{r}
 
@@ -114,48 +155,171 @@ p <- df %>%
                                   {scales::percent(vac_share, accuracy = 0.01, decimal.mark = ',')} der Bevölkerung geimpft"
     )
   ), col = main_color, size = 0.9 ) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  coord_cartesian(ylim = c(0, 0.1)) +
-  labs(x = NULL,  y = NULL) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 0.01)) +
+  coord_cartesian(ylim = c(0, NA)) +
+  labs(title = "Anteil der Geimpften an der Gesamtbevölkerung", 
+       x = NULL,  y = NULL) +
   theme_minimal(base_family = "Source Sans Pro", base_size = 14)
 
 # ggplotly(p, tooltip = c("text"))
 
 p
+ 
+```
+
+
+
+Column {data-width=400}  {.tabset}
+-----------------------------------------------------------------------
+
+```{r include=FALSE}
+# load and unzip shape file (https://gadm.org/download_country_v3.html)
+de_shapefile_url <- "https://biogeo.ucdavis.edu/data/gadm3.6/shp/gadm36_DEU_shp.zip"
+de_shapefile_zip <- "data/de_shape.zip"
+de_shapefile_folder <- "data/de_shape"
+if (!file.exists(de_shapefile_zip)) {
+  download.file(de_shapefile_url, de_shapefile_zip)
+  unzip(de_shapefile_zip, exdir = "data/de_shapefile")
+}
+
+shape_germany <- readOGR(dsn = "data/de_shapefile", layer = "gadm36_DEU_1", use_iconv = TRUE, encoding = "UTF-8")
+
+# create a tidy dataframe from shape file and join RKI data
+tidy_germany <- broom::tidy(shape_germany) %>% 
+  left_join(shape_germany@data %>% rownames_to_column(var = "rowname"), by = c("id" = "rowname")) %>% 
+  inner_join(df, by = c("NAME_1" = "bundesland"))  %>% 
+  inner_join(inhabitants_states, by = c("NAME_1" = "bundesland")) %>% 
+  mutate(vac_share = count_cumul / inhabitants)
+
+# calculate centers of each federal state
+state_centers <- tidy_germany %>% 
+  group_by(NAME_1) %>% 
+  summarize(long_center = mean(long),
+            lat_center = mean(lat),
+            count_cumul = max(count_cumul),
+            vac_share = max(vac_share)) %>% 
+  mutate(label_abs = glue::glue("{NAME_1}<br><b style='color:{darken(main_color, 0.2)}'>
+                                {count_cumul}</b>"),
+         label_share = glue::glue("{NAME_1}<br><b style='color:{darken(main_color, 0.1)}'>
+                                  {scales::percent(vac_share, accuracy = 0.01)}</b>")) %>% 
+  # manually shift some center positions for better readability
+  mutate(long_center = case_when(
+    NAME_1 == "Bayern" ~ long_center + 1,
+    NAME_1 == "Berlin" ~ long_center + 0.5,
+    NAME_1 == "Brandenburg" ~ long_center - 0.25,
+    NAME_1 == "Niedersachsen" ~ long_center + 0.75,
+    TRUE ~ long_center
+  ),
+  lat_center = case_when(
+    NAME_1 == "Rheinland-Pfalz" ~ lat_center + 0.25,
+    NAME_1 == "Saarland" ~ lat_center - 0.15,
+    NAME_1 == "Mecklenburg-Vorpommern" ~ lat_center - 0.25,
+    NAME_1 == "Brandenburg" ~ lat_center + 0.5,
+    NAME_1 == "Niedersachsen" ~ lat_center - 0.35,
+    TRUE ~ lat_center
+  ))
+
 
 ```
 
 
-Column {data-width=1000}
------------------------------------------------------------------------
+### ABSOLUT
+
+```{r fig.retina=TRUE, fig.width=12, fig.height=8}
+
+plot_map <- function(x, label) {
+  tidy_germany %>% 
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = {{x}}), col = "grey70") +
+  geom_polygon(data = filter(tidy_germany, (as.character(NAME_1) %in% c("Bremen", "Berlin"))), 
+               aes(fill = {{x}})) +
+  scale_fill_continuous_sequential(palette = "Light Grays") +
+  geom_richtext(data = state_centers, 
+                aes(label = {{label}}, x = long_center, y = lat_center), 
+            inherit.aes = FALSE, size = 5, label.color = NA, fill = NA,
+            family = "Source Sans Pro",
+            stat = "unique") +
+  coord_map() +
+  guides(fill = FALSE) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.justification = "left",
+        legend.key.height = unit(1, "mm"))
+}
+
+plot_map(count_cumul, label_abs)
+
+```
 
 
-### BUNDESLÄNDER
+### ANTEILIG
+
+```{r fig.retina=TRUE, fig.width=12, fig.height=8}
+
+plot_map(vac_share, label_share)
+
+```
+
+
+### TABELLE
 
 ```{r}
 
-df %>% 
-  filter(date == latest, bundesland != "Gesamt") %>% 
-  select(-date, Bundesland = bundesland, `Impfungen (kumulativ)` = count_cumul) %>% 
-  datatable(style = "bootstrap4",
-            rownames = FALSE,
-            caption = glue::glue("Daten: RKI, Stand {update_dates$update_date_str}"),
-            options = list("pagelength" = 16,
-                           "paging" = FALSE, 
-                           "columnDefs" = list(list(className = 'dt-left', targets = "_all")),
-                           "searching" = FALSE,
-                           "bInfo" = FALSE # hide "Showing ... entries" 
-                           )) %>% 
-    formatStyle(
-        "Impfungen (kumulativ)",
-        background = styleColorBar(df$count_cumul,
-                                   main_color,
-                                   angle = -90),
-        backgroundSize = "100% 50%",
-        backgroundRepeat = "no-repeat",
-        backgroundPosition = "center"
-      ) #%>% 
-  # formatRound("Impfungen (kumulativ)", digits = 0, mark = ".")
+df2 <- df %>%
+  filter(date == latest, bundesland != "Gesamt") %>%
+  inner_join(inhabitants_states, by = "bundesland") %>%
+  mutate(vac_share = count_cumul / inhabitants)
+
+df2 %>%
+  select(
+    Bundesland = bundesland,
+    `Impfungen (kumulativ)` = count_cumul,
+    `Geimpfte (Bevölkerung)` = vac_share
+  ) %>%
+  datatable(
+    style = "bootstrap4",
+    rownames = FALSE,
+    caption = glue::glue("Daten: RKI, Stand {update_dates$update_date_str}"),
+    options = list(
+      "pagelength" = 16,
+      "paging" = FALSE,
+      "columnDefs" = list(list(
+        className = 'dt-left', targets = "_all"
+      )),
+      "language " = list("decimal" = ",", # enables sorting of values with German decimal comma
+                         "thousand" = "."),
+      "searching" = FALSE,
+      "bInfo" = FALSE # hide "Showing ... entries"
+    )
+  ) %>%
+  formatStyle(
+    "Impfungen (kumulativ)",
+    background = styleColorBar(df2$count_cumul,
+                               lighten(main_color, 0.5),
+                               angle = -90),
+    backgroundSize = "60% 50%",
+    backgroundRepeat = "no-repeat",
+    backgroundPosition = "left"
+  ) %>%
+  formatStyle(
+    "Geimpfte (Bevölkerung)",
+    background = styleColorBar(df2$vac_share,
+                               lighten(main_color, 0.7),
+                               angle = -90),
+    backgroundSize = "60% 50%",
+    backgroundRepeat = "no-repeat",
+    backgroundPosition = "left"
+  ) %>%
+  formatRound(
+    "Impfungen (kumulativ)",
+    digits = 0,
+    mark = ".",
+    dec.mark = ","
+  ) %>%
+  formatPercentage("Geimpfte (Bevölkerung)",
+                   digits = 2,
+                   dec.mark = ",")
 
 ```
+
 
