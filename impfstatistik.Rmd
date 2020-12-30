@@ -5,7 +5,6 @@ output:
     orientation: columns
     vertical_layout: fill
     theme: yeti
-  css: dataTables.bootstrap4.css
 ---
 
 ```{r setup, include=FALSE}
