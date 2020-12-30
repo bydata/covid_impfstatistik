@@ -135,7 +135,7 @@ ggplot() +
   geom_point(aes(x = 1, y = vac_share), shape = "|", size = 12) +
   geom_text(aes(x = 1, y = vac_share, 
                 label = scales::percent(vac_share, accuracy = 0.01, decimal.mark = ",")),
-            hjust = 0, col = "grey30", nudge_x = 0.02, family = "Source Sans Pro", size = 12) +
+            hjust = 0, col = "grey30", nudge_x = 0.02, family = "Inconsolata", size = 12) +
   coord_flip(xlim = c(1, 1)) +
   theme_void() 
 
@@ -167,7 +167,8 @@ p <- df %>%
   coord_cartesian(ylim = c(0, NA)) +
   labs(title = "Impfdosen pro 100 Einwohner", 
        x = NULL,  y = NULL) +
-  theme_minimal(base_family = "Source Sans Pro", base_size = 14)
+  theme_minimal(base_family = "Source Sans Pro", base_size = 14) +
+  theme(axis.text = element_text(family = "Inconsolata"))
 
 # ggplotly(p, tooltip = c("x"))
 
@@ -206,10 +207,10 @@ state_centers <- tidy_germany %>%
             lat_center = mean(lat),
             count_cumul = max(count_cumul),
             vac_share = max(vac_share)) %>% 
-  mutate(label_abs = glue::glue("{NAME_1}<br><b style='color:{darken(main_color, 0.2)}'>
+  mutate(label_abs = glue::glue("{NAME_1}<br><b style='font-family:Inconsolata;color:{darken(main_color, 0.2)}'>
                                 {scales::number(count_cumul, big.mark = '.', 
                                 accuracy = 1)}</b>"),
-         label_share = glue::glue("{NAME_1}<br><b style='color:{darken(main_color, 0.1)}'>
+         label_share = glue::glue("{NAME_1}<br><b style='font-family:Inconsolata;color:{darken(main_color, 0.1)}'>
                                   {scales::number(vac_share, accuracy = 0.01, decimal.mark = ',')}</b>")) %>% 
   # manually shift some center positions for better readability
   mutate(long_center = case_when(
@@ -303,6 +304,7 @@ df2 %>%
   ) %>%
   formatStyle(
     "Impfungen (kumulativ)",
+    fontFamily = "Inconsolata",
     background = styleColorBar(df2$count_cumul,
                                lighten(main_color, 0.5),
                                angle = -90),
@@ -312,6 +314,7 @@ df2 %>%
   ) %>%
   formatStyle(
     "Impfdosen je 100 Einwohner",
+    fontFamily = "Inconsolata",
     background = styleColorBar(df2$vac_share,
                                lighten(main_color, 0.7),
                                angle = -90),
