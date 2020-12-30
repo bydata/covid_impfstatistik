@@ -1,5 +1,5 @@
 ---
-title: "Impffortschritt Deutschland"
+title: "Covid-19-Impfungen Deutschland"
 output: 
   flexdashboard::flex_dashboard:
     orientation: columns
@@ -33,6 +33,7 @@ main_color <- "#008cba"
 
 ```{r}
 # download latest report
+# Source: https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Impfquoten-Tab.html
 url <- "https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Daten/Impfquotenmonitoring.xlsx;jsessionid=?__blob=publicationFile"
 rki_tab_path <- file.path("data", 
                           glue::glue("Impfquotenmonitoring_{Sys.Date()}.xlsx")
@@ -42,22 +43,29 @@ download.file(url, destfile = rki_tab_path, mode = "wb")
 
 # get update date from sheet "Erläuterungen"
 update_dates <- read_xlsx(here::here(rki_tab_path), sheet = 1) %>% 
-  rename(X1 = 1) %>% 
-  filter(str_detect(X1, "Datenstand:")) %>% 
-  transmute(date = str_extract(X1, "\\d{1,2}\\.\\d{1,2}\\.\\d{4}"),
-         date = dmy(date),
-         update_date_str = str_remove(X1, "Datenstand: ")) %>% 
-  slice(1)
+  rename(X1 = 1, X2 = 2) %>% 
+  # Sheet is filled inconsistently, even containing wrong dates...
+  unite(allcols, everything(), sep = " ", na.rm = TRUE) %>% 
+  filter(str_detect(allcols, "Datenstand:")) %>% 
+  mutate(date1 = str_extract_all(allcols, "\\d{1,2}\\.\\d{1,2}\\.\\d{4}"),
+         date2 = str_extract_all(allcols, "\\d{4}-\\d{1,2}-\\d{1,2}")) %>% 
+  unnest(date1) %>% 
+  unnest(date2) %>% 
+  mutate(date1 = dmy(date1),
+         date2 = as_date(date2)
+  ) %>% 
+  slice(nrow(.)) %>% 
+  transmute(date = pmax(date1, date2))
 
 # latest <- max(df$date)
 latest <- update_dates$date - 1
 latest_fmt <- format(latest, format = "%d.%m.%Y")
 
-df <- read_xlsx(here::here(rki_tab_path), sheet = 2) %>% 
-  select(bundesland = 1, count_cumul = 2) %>% 
-  mutate(date = latest,
-         bundesland = str_remove_all(bundesland, "\\*")) %>% 
-  na.omit()
+# df <- read_xlsx(here::here(rki_tab_path), sheet = 2) %>% 
+#   select(bundesland = 1, count_cumul = 2) %>% 
+#   mutate(date = latest,
+#          bundesland = str_remove_all(bundesland, "\\*")) %>% 
+#   na.omit()
 
 inhabitants_states <- tribble(
   ~bundesland, ~inhabitants, 
@@ -142,26 +150,27 @@ ggplot() +
 ```{r}
 
 p <- df %>%
-  filter(date == latest) %>%
+  # filter(date == latest) %>%
   filter(bundesland == "Gesamt") %>%
   select(-bundesland) %>% 
   bind_rows(tibble(date = as_date("2020-12-26"), count_cumul = 51)) %>% 
-  mutate(vac_share = count_cumul / inhabitants_de) %>%
+  mutate(vac_share = 100 * count_cumul / inhabitants_de) %>%
   ggplot(aes(date, vac_share, group = 1)) +
   geom_line(aes(
     text = glue::glue(
       "<b>{date}</b><br>
-                                  {count_cumul} Impfungen<br>
-                                  {scales::percent(vac_share, accuracy = 0.01, decimal.mark = ',')} der Bevölkerung geimpft"
+       {count_cumul} Impfungen<br>
+       {scales::number(vac_share, accuracy = 0.01, decimal.mark = ',')} Impfdosen pro 100 Einwohner"
     )
   ), col = main_color, size = 0.9 ) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 0.01)) +
+  geom_point(shape = 21, fill = "white", col = main_color) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 0.01)) +
   coord_cartesian(ylim = c(0, NA)) +
-  labs(title = "Anteil der Geimpften an der Gesamtbevölkerung", 
+  labs(title = "Impfdosen pro 100 Einwohner", 
        x = NULL,  y = NULL) +
   theme_minimal(base_family = "Source Sans Pro", base_size = 14)
 
-# ggplotly(p, tooltip = c("text"))
+# ggplotly(p, tooltip = c("x"))
 
 p
  
@@ -189,7 +198,7 @@ tidy_germany <- broom::tidy(shape_germany) %>%
   left_join(shape_germany@data %>% rownames_to_column(var = "rowname"), by = c("id" = "rowname")) %>% 
   inner_join(df, by = c("NAME_1" = "bundesland"))  %>% 
   inner_join(inhabitants_states, by = c("NAME_1" = "bundesland")) %>% 
-  mutate(vac_share = count_cumul / inhabitants)
+  mutate(vac_share = 100 * count_cumul / inhabitants)
 
 # calculate centers of each federal state
 state_centers <- tidy_germany %>% 
@@ -199,9 +208,10 @@ state_centers <- tidy_germany %>%
             count_cumul = max(count_cumul),
             vac_share = max(vac_share)) %>% 
   mutate(label_abs = glue::glue("{NAME_1}<br><b style='color:{darken(main_color, 0.2)}'>
-                                {count_cumul}</b>"),
+                                {scales::number(count_cumul, big.mark = '.', 
+                                accuracy = 1)}</b>"),
          label_share = glue::glue("{NAME_1}<br><b style='color:{darken(main_color, 0.1)}'>
-                                  {scales::percent(vac_share, accuracy = 0.01, decimal.mark = ',')}</b>")) %>% 
+                                  {scales::number(vac_share, accuracy = 0.01, decimal.mark = ',')}</b>")) %>% 
   # manually shift some center positions for better readability
   mutate(long_center = case_when(
     NAME_1 == "Bayern" ~ long_center + 1,
@@ -223,7 +233,7 @@ state_centers <- tidy_germany %>%
 ```
 
 
-### ABSOLUT
+### IMPFUNGEN
 
 ```{r fig.retina=TRUE, fig.width=12, fig.height=8}
 
@@ -252,7 +262,7 @@ plot_map(count_cumul, label_abs)
 ```
 
 
-### ANTEILIG
+### IMPFDOSEN JE 100 EINWOHNER
 
 ```{r fig.retina=TRUE, fig.width=12, fig.height=8}
 
@@ -268,18 +278,18 @@ plot_map(vac_share, label_share)
 df2 <- df %>%
   filter(date == latest, bundesland != "Gesamt") %>%
   inner_join(inhabitants_states, by = "bundesland") %>%
-  mutate(vac_share = count_cumul / inhabitants)
+  mutate(vac_share = 100 * count_cumul / inhabitants)
 
 df2 %>%
   select(
     Bundesland = bundesland,
     `Impfungen (kumulativ)` = count_cumul,
-    `Geimpfte (Bevölkerung)` = vac_share
+    `Impfdosen je 100 Einwohner` = vac_share
   ) %>%
   datatable(
     style = "bootstrap4",
     rownames = FALSE,
-    caption = glue::glue("Daten: RKI, Stand {update_dates$update_date_str}"),
+    caption = glue::glue("Daten: RKI, Stand {update_dates$date}"),
     options = list(
       "pagelength" = 16,
       "paging" = FALSE,
@@ -302,7 +312,7 @@ df2 %>%
     backgroundPosition = "left"
   ) %>%
   formatStyle(
-    "Geimpfte (Bevölkerung)",
+    "Impfdosen je 100 Einwohner",
     background = styleColorBar(df2$vac_share,
                                lighten(main_color, 0.7),
                                angle = -90),
@@ -316,7 +326,7 @@ df2 %>%
     mark = ".",
     dec.mark = ","
   ) %>%
-  formatPercentage("Geimpfte (Bevölkerung)",
+  formatRound("Impfdosen je 100 Einwohner",
                    digits = 2,
                    dec.mark = ",")
 
