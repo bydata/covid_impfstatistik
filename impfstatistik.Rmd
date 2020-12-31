@@ -168,7 +168,10 @@ p <- df %>%
   labs(title = "Impfdosen pro 100 Einwohner", 
        x = NULL,  y = NULL) +
   theme_minimal(base_family = "Source Sans Pro", base_size = 14) +
-  theme(axis.text = element_text(family = "Inconsolata"))
+  theme(axis.text = element_text(family = "Inconsolata"),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(size = 0.1, color = "grey90"),
+        panel.grid.minor = element_blank())
 
 # ggplotly(p, tooltip = c("x"))
 
