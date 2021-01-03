@@ -184,7 +184,7 @@ p
 Column {data-width=400}  {.tabset}
 -----------------------------------------------------------------------
 
-```{r include=FALSE}
+```{r include=FALSE, cache=TRUE}
 # load and unzip shape file (https://gadm.org/download_country_v3.html)
 de_shapefile_url <- "https://biogeo.ucdavis.edu/data/gadm3.6/shp/gadm36_DEU_shp.zip"
 de_shapefile_zip <- "data/de_shape.zip"
@@ -195,6 +195,10 @@ if (!file.exists(de_shapefile_zip)) {
 }
 
 shape_germany <- readOGR(dsn = "data/de_shapefile", layer = "gadm36_DEU_1", use_iconv = TRUE, encoding = "UTF-8")
+
+```
+
+```{r}
 
 # create a tidy dataframe from shape file and join RKI data
 tidy_germany <- broom::tidy(shape_germany) %>% 
