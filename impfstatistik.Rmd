@@ -42,19 +42,21 @@ download.file(url, destfile = rki_tab_path, mode = "wb")
 
 # get update date from sheet "Erläuterungen"
 update_dates <- read_xlsx(here::here(rki_tab_path), sheet = 1) %>% 
-  rename(X1 = 1, X2 = 2) %>% 
+  # rename(X1 = 1, X2 = 2) %>% 
+  rename(X1 = 1) %>% 
   # Sheet is filled inconsistently, even containing wrong dates...
   unite(allcols, everything(), sep = " ", na.rm = TRUE) %>% 
   filter(str_detect(allcols, "Datenstand:")) %>% 
   mutate(date1 = str_extract_all(allcols, "\\d{1,2}\\.\\d{1,2}\\.\\d{4}"),
          date2 = str_extract_all(allcols, "\\d{4}-\\d{1,2}-\\d{1,2}")) %>% 
   unnest(date1) %>% 
-  unnest(date2) %>% 
+  # unnest(date2) %>% 
   mutate(date1 = dmy(date1),
-         date2 = as_date(date2)
+         # date2 = as_date(date2)
   ) %>% 
-  slice(nrow(.)) %>% 
-  transmute(date = pmax(date1, date2))
+  slice(nrow(.))  %>% 
+  # transmute(date = pmax(date1, date2))
+  transmute(date = date1)
 
 # latest <- max(df$date)
 latest <- update_dates$date - 1
