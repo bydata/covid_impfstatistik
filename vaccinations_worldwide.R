@@ -71,7 +71,7 @@ update_geom_defaults("text", list(family = "Source Sans Pro", hjust = 0, vjust =
 
 eu_countries <- c("Germany", "France", "Portugal", "Spain", "Italy", "Slovenia", "Slovakia", 
                   "Czechia", "Netherlands", "Belgium", "Luxembourg", "Austria", "Ireland", 
-                  "Lithuania", "Hungary", "Denmark", "Sweden", "Malta", "Poland", 
+                  "Lithuania", "Hungary", "Denmark", "Sweden", "Malta", "Poland", "Cyprus",
                   "Latvia", "Estonia", "Bulgaria", "Romania", "Croatia", "Greece", "Finland")
 
 uk_parts <- c("England", "Wales", "Scotland", "Northern Ireland")
@@ -120,7 +120,7 @@ vac %>%
   coord_flip() +
   labs(title = plot_title,
        subtitle = plot_subtitle,
-       caption = "@4nsgarW. Quelle: Our World in Data (Stand 04.01.2021).",
+       caption = "@4nsgarW. Quelle: Our World in Data (Stand 06.01.2021)",
        x = NULL, fill = NULL,
        y = NULL) +
   theme_minimal(base_family = "Source Sans Pro") +
@@ -131,7 +131,7 @@ vac %>%
         plot.title.position = "plot",
         plot.caption = element_text(hjust = 0),
         axis.title.x = element_text(hjust = 0),
-        axis.text.y = element_markdown())
+        axis.text.y = element_markdown(size = 8))
 
 ggsave("plots/vaccinations_worldwide.png", type = "cairo", dpi = 200, width = 6, height = 6)
 
