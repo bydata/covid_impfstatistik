@@ -169,11 +169,15 @@ p <- df %>%
   coord_cartesian(ylim = c(0, NA)) +
   labs(title = "Impfdosen pro 100 Einwohner", 
        x = NULL,  y = NULL) +
-  theme_minimal(base_family = "Source Sans Pro", base_size = 14) +
-  theme(axis.text = element_text(family = "Inconsolata"),
+  theme_minimal(base_family = "Barlow", base_size = 14) +
+  theme(axis.text = element_text(color = "grey30"),
         panel.grid.major.x = element_blank(),
         panel.grid.major.y = element_line(size = 0.1, color = "grey90"),
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(family = "Barlow SemiBold", color = "black",
+                                  margin = margin(b = 24)),
+        plot.title.position = "plot",
+        plot.margin = margin(t = 6, l = 6, r = 6, b = 6))
 
 # ggplotly(p, tooltip = c("x"))
 
@@ -216,10 +220,10 @@ state_centers <- tidy_germany %>%
             lat_center = mean(lat),
             count_cumul = max(count_cumul),
             vac_share = max(vac_share)) %>% 
-  mutate(label_abs = glue::glue("{NAME_1}<br><b style='font-family:Inconsolata;color:{darken(main_color, 0.2)}'>
+  mutate(label_abs = glue::glue("{NAME_1}<br><b style='font-family:Barlow;color:{darken(main_color, 0.2)}'>
                                 {scales::number(count_cumul, big.mark = '.', 
                                 accuracy = 1)}</b>"),
-         label_share = glue::glue("{NAME_1}<br><b style='font-family:Inconsolata;color:{darken(main_color, 0.1)}'>
+         label_share = glue::glue("{NAME_1}<br><b style='font-family:Barlow;color:{darken(main_color, 0.1)}'>
                                   {scales::number(vac_share, accuracy = 0.01, decimal.mark = ',')}</b>")) %>% 
   # manually shift some center positions for better readability
   mutate(long_center = case_when(
