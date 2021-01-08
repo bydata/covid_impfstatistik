@@ -4,7 +4,9 @@ library(ggtext)
 library(colorspace)
 library(extrafont)
 
-loadfonts()
+# font_import(pattern = "Barlow", prompt = FALSE)
+# font_import(pattern = "Chivo", prompt = FALSE)
+loadfonts(quiet = TRUE)
 
 url_vac_data <- "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/vaccinations/vaccinations.csv"
 vac <- read_csv(url_vac_data)
@@ -67,7 +69,7 @@ vac %>%
         )
 
 
-update_geom_defaults("text", list(family = "Source Sans Pro", hjust = 0, vjust = 0.5, size = 2.5))
+update_geom_defaults("text", list(family = "Barlow", hjust = 0, vjust = 0.5, size = 2.25))
 
 eu_countries <- c("Germany", "France", "Portugal", "Spain", "Italy", "Slovenia", "Slovakia", 
                   "Czechia", "Netherlands", "Belgium", "Luxembourg", "Austria", "Ireland", 
@@ -120,18 +122,20 @@ vac %>%
   coord_flip() +
   labs(title = plot_title,
        subtitle = plot_subtitle,
-       caption = "@4nsgarW. Quelle: Our World in Data (Stand 06.01.2021)",
+       caption = "@4nsgarW. Quelle: Our World in Data (Stand 08.01.2021)",
        x = NULL, fill = NULL,
        y = NULL) +
-  theme_minimal(base_family = "Source Sans Pro") +
+  theme_minimal(base_family = "Barlow") +
   theme(panel.grid = element_blank(),
-        panel.grid.major.x = element_line(size = 0.1, color = "grey92"),
-        text = element_text(color = "grey20", lineheight = 1.2),
+        panel.grid.major.x = element_line(size = 0.1, color = "grey89"),
+        text = element_text(color = "grey30", lineheight = 1.2),
         plot.title = element_markdown(family = "Source Sans Pro SemiBold"),
         plot.title.position = "plot",
-        plot.caption = element_text(hjust = 0),
+        plot.caption = element_text(hjust = 0, size = 6),
         axis.title.x = element_text(hjust = 0),
-        axis.text.y = element_markdown(size = 8))
+        axis.text.y = element_markdown(size = 7),
+        plot.background = element_rect(color = NA, fill = "grey98"),
+        plot.margin = margin(t = 8, l = 8, r = 8, b = 8))
 
 ggsave("plots/vaccinations_worldwide.png", type = "cairo", dpi = 200, width = 6, height = 6)
 
