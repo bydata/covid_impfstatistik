@@ -78,8 +78,8 @@ eu_countries <- c("Germany", "France", "Portugal", "Spain", "Italy", "Slovenia",
 
 uk_parts <- c("England", "Wales", "Scotland", "Northern Ireland")
 
-plot_title <- "<span style='color:steelblue'>Deutschland</span> weltweit über Durchschnitt,<br>
-in der EU ist Dänemark derzeit deutlich voraus"
+plot_title <- "<span style='color:steelblue'>Deutschland</span> in der EU im Mittelfeld,<br>
+Dänemark ist deutlich voraus"
 plot_subtitle <- "Impfungen je 100 Einwohner"
 
 vac %>% 
