@@ -122,7 +122,7 @@ vac %>%
   coord_flip() +
   labs(title = plot_title,
        subtitle = plot_subtitle,
-       caption = "@4nsgarW. Quelle: Our World in Data (Stand 08.01.2021)",
+       caption = "@4nsgarW. Quelle: Our World in Data (Stand 10.01.2021)",
        x = NULL, fill = NULL,
        y = NULL) +
   theme_minimal(base_family = "Barlow") +
