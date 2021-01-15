@@ -122,7 +122,7 @@ vac %>%
   coord_flip() +
   labs(title = plot_title,
        subtitle = plot_subtitle,
-       caption = "@4nsgarW. Quelle: Our World in Data (Stand 12.01.2021)",
+       caption = "@4nsgarW. Quelle: Our World in Data (Stand 14.01.2021)",
        x = NULL, fill = NULL,
        y = NULL) +
   theme_minimal(base_family = "Barlow") +
@@ -137,5 +137,5 @@ vac %>%
         plot.background = element_rect(color = NA, fill = "grey98"),
         plot.margin = margin(t = 8, l = 8, r = 8, b = 8))
 
-ggsave("plots/vaccinations_worldwide.png", type = "cairo", dpi = 200, width = 6, height = 6)
+ggsave("plots/vaccinations_worldwide.png", type = "cairo", dpi = 200, width = 6, height = 6.5)
 
