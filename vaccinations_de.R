@@ -35,7 +35,7 @@ bundesland_mapping <- c("BB" = "Brandenburg", "BE" = "Berlin", "BW" = "Baden-Wü
                         "SL" = "Saarland", "SN" = "Sachsen", "ST" = "Sachsen-Anhalt", "TH" = "Thüringen")
 
 
-## Download vaccination status data ==========================================================
+## Download vaccinations data ==========================================================
 # Source: RKI/ARD: https://github.com/ard-data/2020-rki-impf-archive
 url_vaccination <- "https://raw.githubusercontent.com/ard-data/2020-rki-impf-archive/master/data/9_csv_v2/all.csv"
 file_vaccination <- "vaccinations.tsv"
@@ -83,7 +83,7 @@ delivery <- delivery %>%
          region = bundesland_mapping[region],
          impfstoff = vaccine_mapping[impfstoff])
 
-# complete dataset to current date
+# complete dataset to latest date of vaccination data
 delivery_expanded <- delivery %>% 
   group_by(region, impfstoff) %>% 
   filter(date == max(date)) %>% 
@@ -120,13 +120,14 @@ vaccination_filtered %>%
 
 ## PLOTS ============================================
 
-# plot the doses available and vaccinations for a supplier
+# plot the doses available and administered by supplier
 plot_doses_vaccine <- function(vaccine) {
   
   vaccine_colors <- c("Astra Zeneca" = "steelblue",
                       "BioNTech" = "orangered",
                       "Moderna" = "darkgreen")
   
+  # filter deliveries for given supplier and create data structure for stepwise area chart
   delivery_expanded2 <- delivery_expanded %>%
     filter(impfstoff == vaccine) %>% 
     group_by(region) %>% 
@@ -135,15 +136,18 @@ plot_doses_vaccine <- function(vaccine) {
     filter(!is.na(dosen_cumul)) %>% 
     bind_rows(subset(delivery_expanded, impfstoff == vaccine))
   
+  # doses administered for given supplier
   vaccination_subset <- subset(vaccination_filtered, impfstoff == vaccine & dosen_cumul > 0)
   
   delivery_expanded2 %>% 
     filter(dosen_cumul > 0) %>% 
     ggplot(aes(date, dosen_cumul)) +
+    # area for doses delivered
     geom_step(col = "grey50", size = 0.25) +
     geom_ribbon(aes(ymin = 0, ymax = dosen_cumul), 
                 outline.type = "upper",
                 alpha = 0.1) +
+    # line and area for doses administered
     geom_line(data = vaccination_subset,
               size = 0.75, col = vaccine_colors[vaccine]) +
     geom_area(data = vaccination_subset,
@@ -168,4 +172,3 @@ for (vaccine in c("Astra Zeneca", "BioNTech", "Moderna")) {
   ggsave(glue::glue("plots/vaccinations_de_{vaccine}.png"), type = "cairo", dpi = 200, width = 7.5, height = 6)
   message(glue::glue("Saved {vaccine} plot"))
 }
-
